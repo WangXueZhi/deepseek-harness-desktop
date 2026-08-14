@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeepSeek Harness</title>
+    <style>
+      :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: #0f1115; color: #f5f7fa; display: grid; place-items: center; }
+      main { width: min(520px, calc(100vw - 48px)); padding: 36px; border: 1px solid #2b303a; border-radius: 20px; background: #171a21; box-shadow: 0 24px 80px #0008; }
+      .mark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(135deg, #5b7cff, #8b5cf6); font-weight: 800; font-size: 22px; }
+      h1 { margin: 22px 0 8px; font-size: 25px; letter-spacing: -.02em; }
+      p { margin: 0; color: #aab2c0; line-height: 1.6; }
+      #detail { margin-top: 12px; font-size: 13px; color: #7e8796; min-height: 20px; }
+      .spinner { width: 18px; height: 18px; margin-top: 24px; border: 2px solid #3a4352; border-top-color: #8b9cff; border-radius: 50%; animation: spin .8s linear infinite; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+      button { border: 1px solid #384252; border-radius: 10px; padding: 9px 13px; color: #e8ecf4; background: #222733; cursor: pointer; }
+      button:hover { background: #2b3342; }
+      .hidden { display: none; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark">D</div>
+      <h1 id="title">正在启动 DeepSeek Harness</h1>
+      <p id="message">正在准备本地 Agent 服务，请稍候。</p>
+      <div id="detail"></div>
+      <div id="spinner" class="spinner"></div>
+      <div id="actions" class="actions hidden">
+        <button id="retry">重新启动</button>
+        <button id="workspace">选择 workspace</button>
+        <button id="data-dir">打开数据目录</button>
+      </div>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

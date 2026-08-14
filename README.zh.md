@@ -34,6 +34,20 @@ pnpm run build
 pnpm dsh web
 ```
 
+### 桌面版预览
+
+仓库还包含一个可选的 Tauri 2 桌面壳，首版目标为 macOS arm64/x64 和 Windows x64。安装包会内置 Node.js 运行时，并启动同一个 `dsh web` 服务，因此最终用户无需预装 Node.js。
+
+在源码 checkout 中构建桌面运行时和安装包：
+
+```sh
+pnpm run build
+pnpm run desktop:prepare-runtime
+pnpm --filter @deepseek-ai/dsh-desktop run build
+```
+
+桌面壳是 DeepSeek Harness 的第三方封装，不重写 Harness 核心实现。DeepSeek Harness 当前仍是 developer preview，未来可能出现兼容性破坏性更新。如果在本仓库之外发布包含 DeepSeek 名称、Logo 或其他官方视觉资产的产品，请先确认适用的商标和品牌授权。
+
 ## 社区与支持
 
 - 欢迎通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。

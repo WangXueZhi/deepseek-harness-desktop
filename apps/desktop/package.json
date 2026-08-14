@@ -1,0 +1,16 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-platform Tauri desktop shell for DeepSeek Harness.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "test": "cargo test --manifest-path src-tauri/Cargo.toml && vitest run tests/app.spec.ts",
+    "test:ui": "vitest run tests/app.spec.ts"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
