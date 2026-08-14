@@ -176,8 +176,13 @@ jobs:
           path: dist/desktop
           merge-multiple: true
 
+      - name: Stage release assets
+        run: |
+          mkdir -p dist/release
+          find dist/desktop -type f -exec cp {} dist/release/ \;
+
       - name: Record installer checksums
-        working-directory: dist/desktop
+        working-directory: dist/release
         run: sha256sum * > SHA256SUMS
 
       - name: Publish release assets
@@ -190,6 +195,6 @@ jobs:
             gh release create "$RELEASE_TAG" \
               --target "$GITHUB_SHA" \
               --title "DeepSeek Harness Desktop $RELEASE_VERSION" \
-              --notes "Unsigned preview installers for macOS arm64, macOS x64, and Windows x64. Verify SHA256SUMS before installation."
+              --notes "Unsigned preview packages: macOS arm64 DMG, macOS x64 PKG, and Windows x64 NSIS installer. Verify SHA256SUMS before installation."
           fi
-          gh release upload "$RELEASE_TAG" dist/desktop/* --clobber
+          gh release upload "$RELEASE_TAG" dist/release/* --clobber
