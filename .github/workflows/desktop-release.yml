@@ -78,8 +78,15 @@ jobs:
         run: pnpm run desktop:prepare-runtime -- ${{ matrix.runtime_target }}
 
       - name: Build desktop installer
+        if: runner.os != 'Windows'
         working-directory: apps/desktop
         run: node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }}
+
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop
+        shell: pwsh
+        run: node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }} --bundles nsis
 
       - name: Verify macOS installer
         if: runner.os == 'macOS'
@@ -89,10 +96,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $installers = @(
-            Get-ChildItem 'apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi' -Filter '*.msi' -File -ErrorAction SilentlyContinue
-            Get-ChildItem 'apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis' -Filter '*.exe' -File -ErrorAction SilentlyContinue
-          )
+          $installers = @(Get-ChildItem 'apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis' -Filter '*.exe' -File -ErrorAction SilentlyContinue)
           if ($installers.Count -eq 0) {
             throw 'Tauri produced no Windows installer.'
           }
@@ -111,9 +115,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/msi/*.msi
-            apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe
+          path: apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 7
 
