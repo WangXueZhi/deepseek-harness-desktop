@@ -48,6 +48,8 @@ pnpm --filter @deepseek-ai/dsh-desktop run build
 
 The desktop shell is a third-party wrapper around DeepSeek Harness, not a separate Harness implementation. DeepSeek Harness remains a developer preview and may introduce compatibility-breaking changes. If the DeepSeek name, logo, or other official visual assets are distributed outside this repository, confirm the applicable trademark permissions first.
 
+Unsigned preview installers for macOS and Windows are available from [GitHub Releases](https://github.com/WangXueZhi/deepseek-harness-desktop/releases).
+
 ## Community and support
 
 - Feel free to submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).

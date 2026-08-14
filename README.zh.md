@@ -48,6 +48,8 @@ pnpm --filter @deepseek-ai/dsh-desktop run build
 
 桌面壳是 DeepSeek Harness 的第三方封装，不重写 Harness 核心实现。DeepSeek Harness 当前仍是 developer preview，未来可能出现兼容性破坏性更新。如果在本仓库之外发布包含 DeepSeek 名称、Logo 或其他官方视觉资产的产品，请先确认适用的商标和品牌授权。
 
+macOS 与 Windows 的未签名预览安装包可从 [GitHub Releases](https://github.com/WangXueZhi/deepseek-harness-desktop/releases) 下载。
+
 ## 社区与支持
 
 - 欢迎通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。

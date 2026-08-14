@@ -8,7 +8,7 @@ const root = resolve(import.meta.dirname, '..')
 const runtimeRoot = join(root, 'apps/desktop/runtime')
 const stagingParent = join(root, '.desktop-staging')
 const nodeVersion = process.env.DESKTOP_NODE_VERSION ?? '24.14.0'
-const target = process.argv[2] ?? detectTarget()
+const target = process.argv.slice(2).find(argument => argument !== '--') ?? detectTarget()
 const nodeTarget = targetNodeTarget(target)
 const nodeArchiveName = target.startsWith('windows-') ? 'node.zip' : 'node.tar.gz'
 const targetRoot = join(runtimeRoot, target)
@@ -69,11 +69,10 @@ async function downloadNode(): Promise<void> {
   await rm(extractionDir, { recursive: true, force: true })
   await mkdir(extractionDir, { recursive: true })
   try {
-    if (target.startsWith('windows-')) {
-      execFileSync('unzip', ['-q', archivePath, '-d', extractionDir])
-    } else {
-      execFileSync('tar', ['-xzf', archivePath, '-C', extractionDir])
-    }
+    const extractionArgs = target.startsWith('windows-')
+      ? ['-xf', archivePath, '-C', extractionDir]
+      : ['-xzf', archivePath, '-C', extractionDir]
+    execFileSync('tar', extractionArgs)
     const extractedRoot = join(extractionDir, `node-v${nodeVersion}-${extractionSuffix()}`)
     const nodeSource = join(extractedRoot, target.startsWith('windows-') ? 'node.exe' : 'bin/node')
     await mkdir(join(targetRoot, 'node'), { recursive: true })
@@ -110,7 +109,7 @@ async function deployDsh(): Promise<void> {
   await cleanWorkspaceDeployResidue(workspacePackages)
   await restoreWorkspacePackages(workspacePackages)
   await restoreMissingDirectDependencies(workspacePackages)
-  await restoreVirtualStoreHoists()
+  await restoreVirtualStoreHoists(workspacePackages)
   await materializeTopLevelDependencies()
   await mkdir(dirname(dshRoot), { recursive: true })
   await cp(stagingRoot, dshRoot, {
@@ -181,23 +180,35 @@ async function restoreWorkspacePackages(workspacePackages: Map<string, string>):
   }
 }
 
-async function restoreVirtualStoreHoists(): Promise<void> {
+async function restoreVirtualStoreHoists(workspacePackages: Map<string, string>): Promise<void> {
   const hoistRoot = join(stagingRoot, 'node_modules', '.pnpm', 'node_modules')
   for (const entry of await readdir(hoistRoot, { withFileTypes: true })) {
     if (entry.name === '.bin') continue
     const source = join(hoistRoot, entry.name)
     if (entry.name.startsWith('@') && entry.isDirectory()) {
       for (const scoped of await readdir(source, { withFileTypes: true })) {
+        const dependencySource = join(source, scoped.name)
         const destination = join(stagingRoot, 'node_modules', entry.name, scoped.name)
         if (existsSync(destination)) continue
-        await copyPackage(join(source, scoped.name), destination)
+        if (await isExcludedWorkspaceHoist(dependencySource, workspacePackages)) continue
+        await copyPackage(dependencySource, destination)
       }
       continue
     }
     const destination = join(stagingRoot, 'node_modules', entry.name)
     if (existsSync(destination)) continue
+    if (await isExcludedWorkspaceHoist(source, workspacePackages)) continue
     await copyPackage(source, destination)
   }
+}
+
+async function isExcludedWorkspaceHoist(source: string, workspacePackages: Map<string, string>): Promise<boolean> {
+  const realSource = await realpath(source)
+  if (!realSource.startsWith(root + sep) || isVirtualStorePath(realSource)) return false
+  const manifestPath = join(realSource, 'package.json')
+  if (!existsSync(manifestPath)) return false
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { name?: unknown }
+  return typeof manifest.name === 'string' && !workspacePackages.has(manifest.name)
 }
 
 async function materializeTopLevelDependencies(): Promise<void> {
