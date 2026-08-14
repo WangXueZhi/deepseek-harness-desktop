@@ -78,7 +78,8 @@ jobs:
         run: pnpm run desktop:prepare-runtime -- ${{ matrix.runtime_target }}
 
       - name: Build desktop installer
-        run: pnpm --filter @deepseek-ai/dsh-desktop run build -- --target ${{ matrix.rust_target }}
+        working-directory: apps/desktop
+        run: node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }}
 
       - name: Verify macOS installer
         if: runner.os == 'macOS'
