@@ -37,16 +37,19 @@ jobs:
             runner: macos-15
             runtime_target: darwin-arm64
             rust_target: aarch64-apple-darwin
+            bundle: dmg
             artifact: desktop-macos-arm64
           - name: macOS x64
             runner: macos-15-intel
             runtime_target: darwin-x64
             rust_target: x86_64-apple-darwin
+            bundle: app
             artifact: desktop-macos-x64
           - name: Windows x64
             runner: windows-2025
             runtime_target: windows-x64
             rust_target: x86_64-pc-windows-msvc
+            bundle: nsis
             artifact: desktop-windows-x64
 
     steps:
@@ -80,7 +83,7 @@ jobs:
       - name: Build desktop installer
         if: runner.os != 'Windows'
         working-directory: apps/desktop
-        run: node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }}
+        run: node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle }}
 
       - name: Build Windows installer
         if: runner.os == 'Windows'
@@ -89,15 +92,29 @@ jobs:
           subst R: $env:GITHUB_WORKSPACE
           try {
             Set-Location 'R:\apps\desktop'
-            node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }} --bundles nsis
+            node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle }}
           } finally {
             Set-Location $env:GITHUB_WORKSPACE
             subst R: /d
           }
 
+      - name: Package macOS x64 installer
+        if: matrix.runtime_target == 'darwin-x64'
+        run: |
+          version=$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")
+          pkgbuild \
+            --component "apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos/DeepSeek Harness Desktop.app" \
+            --install-location /Applications \
+            "apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos/DeepSeek Harness Desktop_${version}_x64.pkg"
+
       - name: Verify macOS installer
         if: runner.os == 'macOS'
-        run: test -n "$(find apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg -name '*.dmg' -type f -print -quit)"
+        run: |
+          if [ "${{ matrix.runtime_target }}" = "darwin-x64" ]; then
+            test -n "$(find apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos -name '*.pkg' -type f -print -quit)"
+          else
+            test -n "$(find apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg -name '*.dmg' -type f -print -quit)"
+          fi
 
       - name: Verify Windows installer
         if: runner.os == 'Windows'
@@ -113,7 +130,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg
+          path: |
+            apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos/*.pkg
           if-no-files-found: error
           retention-days: 7
 
