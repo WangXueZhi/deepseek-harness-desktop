@@ -84,9 +84,16 @@ jobs:
 
       - name: Build Windows installer
         if: runner.os == 'Windows'
-        working-directory: apps/desktop
         shell: pwsh
-        run: node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }} --bundles nsis
+        run: |
+          subst R: $env:GITHUB_WORKSPACE
+          try {
+            Set-Location 'R:\apps\desktop'
+            node node_modules/@tauri-apps/cli/tauri.js build --target ${{ matrix.rust_target }} --bundles nsis
+          } finally {
+            Set-Location $env:GITHUB_WORKSPACE
+            subst R: /d
+          }
 
       - name: Verify macOS installer
         if: runner.os == 'macOS'
