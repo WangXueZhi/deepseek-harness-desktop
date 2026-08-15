@@ -41,6 +41,7 @@ describe('desktop launcher', () => {
     await launcher.start()
 
     expect(document.querySelector('#title')?.textContent).toBe('Harness 启动失败')
+    expect(document.querySelector('#message')?.textContent).toBe('请查看启动日志中的详细错误，然后点击重试。')
     expect(document.querySelector('#detail')?.textContent).toContain('runtime missing')
     expect(document.querySelector('#actions')?.classList.contains('hidden')).toBe(false)
   })

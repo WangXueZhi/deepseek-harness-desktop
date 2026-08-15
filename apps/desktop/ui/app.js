@@ -16,7 +16,7 @@ export function createLauncher({ document, invoke, navigate }) {
     const failed = status.state === 'failed'
     const stopped = status.state === 'stopped'
     title.textContent = ready
-      ? '正在打开 Harness'
+        ? '正在打开 Harness'
       : failed
         ? 'Harness 启动失败'
         : stopped
@@ -25,7 +25,7 @@ export function createLauncher({ document, invoke, navigate }) {
     message.textContent = ready
       ? '本地服务已就绪，正在加载 Web UI。'
       : failed
-        ? '请检查运行时和构建产物后重试。'
+        ? '请查看启动日志中的详细错误，然后点击重试。'
         : stopped
           ? '本地服务当前未运行。'
           : '正在准备本地 Agent 服务，请稍候。'

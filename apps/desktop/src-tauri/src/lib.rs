@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs::{self, OpenOptions},
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
@@ -187,6 +187,19 @@ fn launch_dsh(app: &AppHandle, manager: &DshManager) -> Result<DshStatus, String
     let runtime = resolve_runtime(app)?;
     let node = resolve_node(&runtime)?;
     let entrypoint = resolve_entrypoint(&runtime)?;
+    let log_path = data_dir.join("logs").join("dsh.log");
+    fs::create_dir_all(log_path.parent().expect("dsh log path has a parent"))
+        .map_err(|error| error.to_string())?;
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .map_err(|error| {
+            format!(
+                "failed to open dsh startup log {}: {error}",
+                log_path.display()
+            )
+        })?;
     let working_dir = entrypoint
         .parent()
         .and_then(Path::parent)
@@ -201,8 +214,10 @@ fn launch_dsh(app: &AppHandle, manager: &DshManager) -> Result<DshStatus, String
         .env("DSH_HOME", &data_dir)
         .env("DSH_DESKTOP", "1")
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::from(log_file.try_clone().map_err(|error| {
+            format!("failed to prepare dsh stdout log: {error}")
+        })?))
+        .stderr(Stdio::from(log_file));
     #[cfg(unix)]
     command.process_group(0);
     #[cfg(windows)]
@@ -210,17 +225,35 @@ fn launch_dsh(app: &AppHandle, manager: &DshManager) -> Result<DshStatus, String
     let mut child = command.spawn().map_err(|error| error.to_string())?;
 
     if !wait_for_server(&mut child, port) {
-        let error = if let Ok(Some(exit)) = child.try_wait() {
-            format!("dsh exited before becoming ready ({exit})")
-        } else {
-            "dsh did not become ready before the startup timeout".to_string()
-        };
+        let error = startup_failure(&mut child, &log_path);
         terminate_child(&mut child);
         return Err(error);
     }
 
     manager.set_child(child);
     publish_status(app, manager, DshStatus::ready(port))
+}
+
+fn startup_failure(child: &mut Child, log_path: &Path) -> String {
+    let mut error = if let Ok(Some(exit)) = child.try_wait() {
+        format!("dsh exited before becoming ready ({exit})")
+    } else {
+        "dsh did not become ready before the startup timeout".to_string()
+    };
+    error.push_str(&format!(". Startup log: {}", log_path.display()));
+    if let Some(log_tail) = read_log_tail(log_path) {
+        error.push_str("\n");
+        error.push_str(&log_tail);
+    }
+    error
+}
+
+fn read_log_tail(path: &Path) -> Option<String> {
+    let contents = fs::read_to_string(path).ok()?;
+    let mut lines: Vec<&str> = contents.lines().rev().take(12).collect();
+    lines.reverse();
+    let tail = lines.join("\n");
+    (!tail.is_empty()).then_some(tail)
 }
 
 fn stop_internal(app: &AppHandle, manager: &DshManager) -> Result<DshStatus, String> {
@@ -401,9 +434,15 @@ fn node_filename() -> &'static str {
 fn terminate_child(child: &mut Child) {
     #[cfg(target_os = "windows")]
     {
-        let _ = Command::new("taskkill")
-            .args(["/PID", &child.id().to_string(), "/T", "/F"])
-            .status();
+        if !matches!(child.try_wait(), Ok(Some(_))) {
+            let _ = Command::new("taskkill")
+                .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+        }
+        let _ = child.kill();
     }
     #[cfg(not(target_os = "windows"))]
     {

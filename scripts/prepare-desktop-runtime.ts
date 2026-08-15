@@ -58,6 +58,16 @@ function pnpmCommand(): { command: string; prefix: string[] } {
   }
 }
 
+function pnpmTargetOptions(): string[] {
+  const [os, cpu] = target === 'windows-x64'
+    ? ['win32', 'x64']
+    : ['darwin', target === 'darwin-arm64' ? 'arm64' : 'x64']
+  return [
+    `--config.supportedArchitectures.os=${os}`,
+    `--config.supportedArchitectures.cpu=${cpu}`,
+  ]
+}
+
 async function downloadNode(): Promise<void> {
   const archivePath = join(tmpdir(), `dsh-node-${target}-${nodeVersion}-${nodeArchiveName}`)
   const extractionDir = join(tmpdir(), `dsh-node-${target}-${nodeVersion}`)
@@ -94,6 +104,7 @@ async function deployDsh(): Promise<void> {
   const { command, prefix } = pnpmCommand()
   execFileSync(command, [
     ...prefix,
+    ...pnpmTargetOptions(),
     '--config.manage-package-manager-versions=false',
     '--filter',
     '@deepseek-ai/dsh',
@@ -111,6 +122,7 @@ async function deployDsh(): Promise<void> {
   await restoreMissingDirectDependencies(workspacePackages)
   await restoreVirtualStoreHoists(workspacePackages)
   await materializeTopLevelDependencies()
+  validateTargetNativeDependencies()
   await mkdir(dirname(dshRoot), { recursive: true })
   await cp(stagingRoot, dshRoot, {
     recursive: true,
@@ -118,6 +130,33 @@ async function deployDsh(): Promise<void> {
     filter: path => !isVirtualStorePath(path),
   })
   await rm(stagingRoot, { recursive: true, force: true })
+}
+
+function validateTargetNativeDependencies(): void {
+  const required = target === 'windows-x64'
+    ? [
+      'node_modules/@koromix/koffi-win32-x64',
+      'node_modules/node-addon-require-builtin-win32-x64-msvc',
+      'node_modules/@img/sharp-win32-x64',
+    ]
+    : target === 'darwin-arm64'
+      ? [
+        'node_modules/@koromix/koffi-darwin-arm64',
+        'node_modules/node-addon-require-builtin-darwin-arm64',
+        'node_modules/@img/sharp-darwin-arm64',
+      ]
+      : [
+        'node_modules/@koromix/koffi-darwin-x64',
+        'node_modules/node-addon-require-builtin-darwin-x64',
+        'node_modules/@img/sharp-darwin-x64',
+      ]
+  const missing = required.filter(path => !existsSync(join(stagingRoot, path)))
+  if (missing.length > 0) {
+    throw new Error(
+      `desktop runtime for ${target} is missing native dependencies: ${missing.join(', ')}; `
+      + 'run pnpm install on the target platform before preparing the runtime',
+    )
+  }
 }
 
 async function cleanWorkspaceDeployResidue(workspacePackages: Map<string, string>): Promise<void> {
